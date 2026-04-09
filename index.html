@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px 16px 24px;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 16px;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  .card {
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .card h2 {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6b7084;
+    margin-bottom: 10px;
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .field label {
+    font-size: 0.8rem;
+    color: #9da0b0;
+    width: 100px;
+    flex-shrink: 0;
+  }
+
+  .field input {
+    flex: 1;
+    padding: 7px 10px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #12141c;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .field input::placeholder { color: #3e4155; }
+  .field input:focus { border-color: #5b8def; }
+
+  /* hide number spinners */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  .stats {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .stat {
+    flex: 1;
+    background: #12141c;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7084;
+    margin-bottom: 2px;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    font-size: 0.7rem;
+    color: #464960;
+    margin-top: 4px;
+  }
+
+  .lap-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #222531;
+  }
+
+  .lap-row:last-child { border-bottom: none; }
+
+  .lap-label {
+    font-size: 0.85rem;
+    color: #9da0b0;
+  }
+
+  .lap-time {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lap-time.empty { color: #3e4155; }
+
+  .disclaimer {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #464960;
+    margin-top: 12px;
+  }
+
+  .disclaimer a {
+    color: #5b7aaa;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Track Calculator</h1>
+
+  <div class="card">
+    <h2>Gearing</h2>
+    <div class="field">
+      <label for="chainring">Chainring</label>
+      <input type="number" id="chainring" placeholder="70" min="1">
+    </div>
+    <div class="field">
+      <label for="cog">Cog</label>
+      <input type="number" id="cog" placeholder="13" min="1">
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Ratio</div>
+        <div class="stat-value" id="ratio">&mdash;</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Gear Inches</div>
+        <div class="stat-value" id="gear-inches">&mdash;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Speed / Cadence</h2>
+    <div class="field">
+      <label for="cadence">Cadence (rpm)</label>
+      <input type="number" id="cadence" placeholder="120" min="0">
+    </div>
+    <div class="field">
+      <label for="speed">Speed (km/h)</label>
+      <input type="number" id="speed" placeholder="50.0" min="0" step="0.1">
+    </div>
+    <p class="hint">Enter either field and the other will calculate.</p>
+  </div>
+
+  <div class="card">
+    <h2>Lap Times</h2>
+    <div class="lap-row">
+      <span class="lap-label">200m</span>
+      <span class="lap-time empty" id="t200">&mdash;</span>
+    </div>
+    <div class="lap-row">
+      <span class="lap-label">250m</span>
+      <span class="lap-time empty" id="t250">&mdash;</span>
+    </div>
+    <div class="lap-row">
+      <span class="lap-label">333m</span>
+      <span class="lap-time empty" id="t333">&mdash;</span>
+    </div>
+  </div>
+
+  <p class="disclaimer">Made because <a href="https://trackstarcalculator.com">trackstarcalculator.com</a> was down.</p>
+</div>
+
+<script>
+const WHEEL_CIRC = 2.096;   // meters — 700c x 23mm
+const WHEEL_DIAM_IN = 27; // inches — standard for gear inch calculation
+
+const $ = id => document.getElementById(id);
+
+const chainringEl = $('chainring');
+const cogEl = $('cog');
+const cadenceEl = $('cadence');
+const speedEl = $('speed');
+
+let lastEdited = null;
+
+function getGearing() {
+  const chainring = parseFloat(chainringEl.value);
+  const cog = parseFloat(cogEl.value);
+  if (!chainring || !cog || cog === 0) return null;
+  const ratio = chainring / cog;
+  const dev = ratio * WHEEL_CIRC;
+  const gearInches = ratio * WHEEL_DIAM_IN;
+  return { ratio, dev, gearInches };
+}
+
+function formatTime(seconds) {
+  if (!isFinite(seconds) || seconds <= 0) return '\u2014';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins > 0) return mins + ':' + secs.toFixed(2).padStart(5, '0');
+  return secs.toFixed(2) + 's';
+}
+
+function setLap(id, seconds) {
+  const el = $(id);
+  const text = formatTime(seconds);
+  el.textContent = text;
+  el.classList.toggle('empty', text === '\u2014');
+}
+
+function update(source) {
+  const gearing = getGearing();
+
+  if (gearing) {
+    $('ratio').textContent = gearing.ratio.toFixed(2);
+    $('gear-inches').textContent = gearing.gearInches.toFixed(1) + '"';
+  } else {
+    $('ratio').textContent = '\u2014';
+    $('gear-inches').textContent = '\u2014';
+  }
+
+  if (!gearing) {
+    setLap('t200', NaN);
+    setLap('t250', NaN);
+    setLap('t333', NaN);
+    return;
+  }
+
+  let speedKmh = null;
+
+  if (source === 'cadence' || (source === 'gearing' && lastEdited === 'cadence')) {
+    const cadence = parseFloat(cadenceEl.value);
+    if (cadence > 0) {
+      speedKmh = gearing.dev * cadence * 60 / 1000;
+      speedEl.value = speedKmh.toFixed(1);
+    } else {
+      speedEl.value = '';
+    }
+  } else if (source === 'speed' || (source === 'gearing' && lastEdited === 'speed')) {
+    const sp = parseFloat(speedEl.value);
+    if (sp > 0) {
+      speedKmh = sp;
+      const cadence = sp * 1000 / (gearing.dev * 60);
+      cadenceEl.value = Math.round(cadence);
+    } else {
+      cadenceEl.value = '';
+    }
+  }
+
+  if (speedKmh && speedKmh > 0) {
+    const mps = speedKmh / 3.6;
+    setLap('t200', 200 / mps);
+    setLap('t250', 250 / mps);
+    setLap('t333', 333 / mps);
+  } else {
+    setLap('t200', NaN);
+    setLap('t250', NaN);
+    setLap('t333', NaN);
+  }
+}
+
+cadenceEl.addEventListener('input', () => { lastEdited = 'cadence'; update('cadence'); });
+speedEl.addEventListener('input', () => { lastEdited = 'speed'; update('speed'); });
+chainringEl.addEventListener('input', () => update('gearing'));
+cogEl.addEventListener('input', () => update('gearing'));
+</script>
+
+</body>
+</html>
