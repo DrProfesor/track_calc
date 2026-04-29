@@ -141,6 +141,84 @@
 
   .lap-time.empty { color: #3e4155; }
 
+  .combo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #222531;
+    cursor: pointer;
+    transition: background-color 0.1s;
+  }
+
+  .combo-row:last-child { border-bottom: none; }
+  .combo-row:hover { background-color: #222531; }
+
+  .combo-gearing {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .combo-meta {
+    font-size: 0.8rem;
+    color: #9da0b0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .combo-empty {
+    font-size: 0.8rem;
+    color: #464960;
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  .input-with-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .input-with-action input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .icon-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #12141c;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    color: #9da0b0;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+  }
+
+  .icon-btn:hover {
+    color: #fff;
+    border-color: #3e4155;
+  }
+
+  .icon-btn[aria-expanded="true"] {
+    color: #5b8def;
+    border-color: #5b8def;
+  }
+
+  .owned-panel {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #222531;
+  }
+
   .disclaimer {
     text-align: center;
     font-size: 0.85rem;
@@ -189,6 +267,41 @@
         <div class="stat-value" id="gear-inches">&mdash;</div>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Reverse Search</h2>
+    <div class="field">
+      <label for="target-inches">Target Inches</label>
+      <div class="input-with-action">
+        <input type="number" id="target-inches" placeholder="90" min="0" step="0.1">
+        <button type="button" id="owned-toggle-btn" class="icon-btn" aria-label="Toggle gear options" aria-expanded="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" y1="21" x2="4" y2="14"/>
+            <line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/>
+            <line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/>
+            <line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div id="owned-panel" class="owned-panel" hidden>
+      <div class="field">
+        <label for="owned-chainrings">Chainrings</label>
+        <input type="text" id="owned-chainrings" placeholder="e.g. 48-52,55" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="owned-cogs">Cogs</label>
+        <input type="text" id="owned-cogs" placeholder="e.g. 13-16,18" inputmode="numeric">
+      </div>
+    </div>
+    <div id="combo-list"></div>
+    <p class="hint">Tap a row to load it above.</p>
   </div>
 
   <div class="card">
@@ -321,6 +434,134 @@ cadenceEl.addEventListener('input', () => { lastEdited = 'cadence'; update('cade
 speedEl.addEventListener('input', () => { lastEdited = 'speed'; update('speed'); });
 chainringEl.addEventListener('input', () => update('gearing'));
 cogEl.addEventListener('input', () => update('gearing'));
+
+const CHAINRING_MIN = 44;
+const CHAINRING_MAX = 70;
+const COG_MIN = 12;
+const COG_MAX = 20;
+const NUM_RESULTS = 8;
+
+const targetInchesEl = $('target-inches');
+const ownedChainringsEl = $('owned-chainrings');
+const ownedCogsEl = $('owned-cogs');
+const comboListEl = $('combo-list');
+
+const CHAINRINGS_STORAGE_KEY = 'trackcalc.ownedChainrings';
+const COGS_STORAGE_KEY = 'trackcalc.ownedCogs';
+
+function parseList(text) {
+  if (!text) return null;
+  const set = new Set();
+  for (const part of text.split(',')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const range = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) {
+      const a = parseInt(range[1], 10);
+      const b = parseInt(range[2], 10);
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      for (let i = lo; i <= hi; i++) set.add(i);
+    } else if (/^\d+$/.test(trimmed)) {
+      set.add(parseInt(trimmed, 10));
+    } else {
+      return null;
+    }
+  }
+  if (set.size === 0) return null;
+  return [...set].sort((a, b) => a - b);
+}
+
+function rangeList(min, max) {
+  const list = [];
+  for (let i = min; i <= max; i++) list.push(i);
+  return list;
+}
+
+function renderCombos() {
+  const target = parseFloat(targetInchesEl.value);
+  comboListEl.innerHTML = '';
+
+  if (!target || target <= 0) {
+    comboListEl.innerHTML = '<p class="combo-empty">&mdash;</p>';
+    return;
+  }
+
+  const chainrings = parseList(ownedChainringsEl.value) || rangeList(CHAINRING_MIN, CHAINRING_MAX);
+  const cogs = parseList(ownedCogsEl.value) || rangeList(COG_MIN, COG_MAX);
+  const combos = [];
+  for (const c of chainrings) {
+    for (const g of cogs) {
+      if (g <= 0) continue;
+      const inches = (c / g) * WHEEL_DIAM_IN;
+      combos.push({ chainring: c, cog: g, inches, diff: Math.abs(inches - target) });
+    }
+  }
+
+  combos.sort((a, b) => a.diff - b.diff);
+  const seen = new Set();
+  const top = [];
+  for (const combo of combos) {
+    const key = combo.inches.toFixed(2);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    top.push(combo);
+    if (top.length >= NUM_RESULTS) break;
+  }
+
+  for (const combo of top) {
+    const row = document.createElement('div');
+    row.className = 'combo-row';
+    const left = document.createElement('span');
+    left.className = 'combo-gearing';
+    left.textContent = combo.chainring + ' \u00d7 ' + combo.cog;
+    const right = document.createElement('span');
+    right.className = 'combo-meta';
+    const delta = combo.inches - target;
+    const sign = delta >= 0 ? '+' : '\u2212';
+    right.textContent = combo.inches.toFixed(1) + '"  (' + sign + Math.abs(delta).toFixed(1) + ')';
+    row.appendChild(left);
+    row.appendChild(right);
+    row.addEventListener('click', () => {
+      chainringEl.value = combo.chainring;
+      cogEl.value = combo.cog;
+      update('gearing');
+    });
+    comboListEl.appendChild(row);
+  }
+}
+
+targetInchesEl.addEventListener('input', renderCombos);
+
+function bindPersisted(el, key) {
+  el.addEventListener('input', () => {
+    try { localStorage.setItem(key, el.value); } catch (e) {}
+    renderCombos();
+  });
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) el.value = saved;
+  } catch (e) {}
+}
+
+bindPersisted(ownedChainringsEl, CHAINRINGS_STORAGE_KEY);
+bindPersisted(ownedCogsEl, COGS_STORAGE_KEY);
+
+const ownedToggleBtn = $('owned-toggle-btn');
+const ownedPanel = $('owned-panel');
+
+function setOwnedOpen(open) {
+  ownedPanel.hidden = !open;
+  ownedToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+ownedToggleBtn.addEventListener('click', () => {
+  setOwnedOpen(ownedPanel.hidden);
+});
+
+if (ownedChainringsEl.value || ownedCogsEl.value) setOwnedOpen(true);
+
+renderCombos();
 </script>
 
 </body>
