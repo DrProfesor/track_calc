@@ -71,8 +71,8 @@
     flex-shrink: 0;
   }
 
-  .field input {
-    flex: 1;
+  .field input,
+  .field select {
     padding: 7px 10px;
     font-size: 16px;
     font-family: inherit;
@@ -84,8 +84,18 @@
     transition: border-color 0.15s;
   }
 
+  .field input {
+    flex: 1;
+  }
+
+  .field select {
+    flex-shrink: 0;
+    width: 72px;
+  }
+
   .field input::placeholder { color: #3e4155; }
-  .field input:focus { border-color: #5b8def; }
+  .field input:focus,
+  .field select:focus { border-color: #5b8def; }
 
   /* hide number spinners */
   input[type=number]::-webkit-inner-spin-button,
@@ -195,6 +205,18 @@
 
   .input-with-action input {
     flex: 1;
+    min-width: 0;
+  }
+
+  .speed-input-group {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .speed-input-group input {
     min-width: 0;
   }
 
@@ -322,8 +344,14 @@
       <input type="number" id="cadence" placeholder="120" min="0">
     </div>
     <div class="field">
-      <label for="speed">Speed (km/h)</label>
-      <input type="number" id="speed" placeholder="50.0" min="0" step="0.1">
+      <label for="speed">Speed</label>
+      <div class="speed-input-group">
+        <input type="number" id="speed" placeholder="50.0" min="0" step="0.1">
+        <select id="speed-unit" aria-label="Speed unit">
+          <option value="kph" selected>kph</option>
+          <option value="mph">mph</option>
+        </select>
+      </div>
     </div>
     <p class="hint">Enter either field and the other will calculate.</p>
   </div>
@@ -362,8 +390,24 @@ const chainringEl = $('chainring');
 const cogEl = $('cog');
 const cadenceEl = $('cadence');
 const speedEl = $('speed');
+const speedUnitEl = $('speed-unit');
 
 let lastEdited = null;
+let previousSpeedUnit = speedUnitEl.value;
+
+const KMH_PER_MPH = 1.609344;
+
+function speedToKmh(speed, unit = speedUnitEl.value) {
+  return unit === 'mph' ? speed * KMH_PER_MPH : speed;
+}
+
+function kmhToSpeed(speedKmh, unit = speedUnitEl.value) {
+  return unit === 'mph' ? speedKmh / KMH_PER_MPH : speedKmh;
+}
+
+function updateSpeedPlaceholder() {
+  speedEl.placeholder = speedUnitEl.value === 'mph' ? '31.1' : '50.0';
+}
 
 function getGearing() {
   const chainring = parseFloat(chainringEl.value);
@@ -414,15 +458,15 @@ function update(source) {
     const cadence = parseFloat(cadenceEl.value);
     if (cadence > 0) {
       speedKmh = gearing.dev * cadence * 60 / 1000;
-      speedEl.value = speedKmh.toFixed(1);
+      speedEl.value = kmhToSpeed(speedKmh).toFixed(1);
     } else {
       speedEl.value = '';
     }
   } else if (source === 'speed' || (source === 'gearing' && lastEdited === 'speed')) {
     const sp = parseFloat(speedEl.value);
     if (sp > 0) {
-      speedKmh = sp;
-      const cadence = sp * 1000 / (gearing.dev * 60);
+      speedKmh = speedToKmh(sp);
+      const cadence = speedKmh * 1000 / (gearing.dev * 60);
       cadenceEl.value = Math.round(cadence);
     } else {
       cadenceEl.value = '';
@@ -443,6 +487,26 @@ function update(source) {
 
 cadenceEl.addEventListener('input', () => { lastEdited = 'cadence'; update('cadence'); });
 speedEl.addEventListener('input', () => { lastEdited = 'speed'; update('speed'); });
+speedUnitEl.addEventListener('change', () => {
+  const sp = parseFloat(speedEl.value);
+  if (sp > 0) {
+    const speedKmh = speedToKmh(sp, previousSpeedUnit);
+    speedEl.value = kmhToSpeed(speedKmh).toFixed(1);
+  }
+
+  previousSpeedUnit = speedUnitEl.value;
+  updateSpeedPlaceholder();
+
+  if (lastEdited === 'cadence') {
+    update('cadence');
+  } else if (lastEdited === 'speed' || speedEl.value) {
+    update('speed');
+  } else if (cadenceEl.value) {
+    update('cadence');
+  } else {
+    update('gearing');
+  }
+});
 chainringEl.addEventListener('input', () => update('gearing'));
 cogEl.addEventListener('input', () => update('gearing'));
 
