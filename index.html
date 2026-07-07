@@ -740,26 +740,122 @@ const pursuitTargetEl = $('pursuit-target');
 const pursuitStartBtn = $('pursuit-start-btn');
 
 let activeMode = null;
+let audioScheduleId = 0;
 let scheduledAudioTimers = [];
+let scheduledAudioNodes = [];
 let activeAudioEls = [];
 let startClockState = null;
 let pursuitState = null;
 const START_CLOCK_CUES = [60, 30, 20, 10, 5, 4, 3, 2, 1];
+const START_CLOCK_LATE_CUE_MS = 1500;
 const PURSUIT_FLASH_MS = 3000;
-const START_CLOCK_AUDIO = {
+const START_CLOCK_AUDIO_FILES = {
+  long: 'tissot_long_beep.mp3',
+  short: 'tissot_short_beep.mp3',
+  go: 'tissot_start_beep.mp3'
+};
+const START_CLOCK_AUDIO_FALLBACK = {
   long: new Audio('tissot_long_beep.mp3'),
   short: new Audio('tissot_short_beep.mp3'),
   go: new Audio('tissot_start_beep.mp3')
 };
 
-Object.values(START_CLOCK_AUDIO).forEach(audio => {
+let audioCtx = null;
+let startClockAudioDataPromise = null;
+let startClockAudioData = null;
+let startClockAudioPromise = null;
+let startClockAudioBuffers = null;
+
+Object.values(START_CLOCK_AUDIO_FALLBACK).forEach(audio => {
   audio.preload = 'auto';
   audio.load();
 });
 
+function ensureAudioContext() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return null;
+  if (!audioCtx) audioCtx = new AudioCtor();
+  if (audioCtx.state === 'suspended') {
+    const resume = audioCtx.resume();
+    if (resume && resume.catch) resume.catch(() => {});
+  }
+  return audioCtx;
+}
+
+function decodeAudioData(ctx, arrayBuffer) {
+  return new Promise((resolve, reject) => {
+    const result = ctx.decodeAudioData(arrayBuffer, resolve, reject);
+    if (result && result.then) result.then(resolve, reject);
+  });
+}
+
+function fetchStartClockAudioData() {
+  if (startClockAudioData) return Promise.resolve(startClockAudioData);
+  if (startClockAudioDataPromise) return startClockAudioDataPromise;
+
+  const entries = Object.keys(START_CLOCK_AUDIO_FILES).map(kind => {
+    return fetch(START_CLOCK_AUDIO_FILES[kind])
+      .then(response => {
+        if (!response.ok) throw new Error('Unable to load ' + START_CLOCK_AUDIO_FILES[kind]);
+        return response.arrayBuffer();
+      })
+      .then(arrayBuffer => [kind, arrayBuffer]);
+  });
+
+  startClockAudioDataPromise = Promise.all(entries)
+    .then(fetchedEntries => {
+      startClockAudioData = {};
+      for (const entry of fetchedEntries) {
+        startClockAudioData[entry[0]] = entry[1];
+      }
+      return startClockAudioData;
+    })
+    .catch(error => {
+      startClockAudioDataPromise = null;
+      throw error;
+    });
+
+  return startClockAudioDataPromise;
+}
+
+function loadStartClockAudio() {
+  const ctx = ensureAudioContext();
+  if (!ctx) return Promise.reject(new Error('AudioContext unavailable'));
+  if (startClockAudioBuffers) return Promise.resolve(startClockAudioBuffers);
+  if (startClockAudioPromise) return startClockAudioPromise;
+
+  const entries = fetchStartClockAudioData().then(audioData => {
+    return Promise.all(Object.keys(START_CLOCK_AUDIO_FILES).map(kind => {
+      return decodeAudioData(ctx, audioData[kind].slice(0))
+        .then(buffer => [kind, buffer]);
+    }));
+  });
+
+  startClockAudioPromise = entries
+    .then(decodedEntries => {
+      startClockAudioBuffers = {};
+      for (const entry of decodedEntries) {
+        startClockAudioBuffers[entry[0]] = entry[1];
+      }
+      return startClockAudioBuffers;
+    })
+    .catch(error => {
+      startClockAudioPromise = null;
+      throw error;
+    });
+
+  return startClockAudioPromise;
+}
+
 function clearScheduledAudio() {
+  audioScheduleId += 1;
   for (const timer of scheduledAudioTimers) clearTimeout(timer);
   scheduledAudioTimers = [];
+
+  for (const node of scheduledAudioNodes) {
+    try { node.stop(0); } catch (e) {}
+  }
+  scheduledAudioNodes = [];
 
   for (const audio of activeAudioEls) {
     audio.pause();
@@ -769,7 +865,7 @@ function clearScheduledAudio() {
 }
 
 function playStartClockSound(kind) {
-  const template = START_CLOCK_AUDIO[kind];
+  const template = START_CLOCK_AUDIO_FALLBACK[kind];
   if (!template) return;
 
   const audio = template.cloneNode(true);
@@ -795,14 +891,80 @@ function scheduleStartClockSound(delayMs, kind) {
   scheduledAudioTimers.push(timer);
 }
 
-function scheduleStartClockAudio(seconds) {
-  clearScheduledAudio();
+function getStartClockCueDelay(cue) {
+  if (!startClockState) return null;
+  const cueAt = cue === 0 ? startClockState.endAt : startClockState.endAt - cue * 1000;
+  return cueAt - performance.now();
+}
+
+function getStartClockCueKind(cue) {
+  if (cue === 0) return 'go';
+  return cue >= 10 ? 'long' : 'short';
+}
+
+function scheduleStartClockFallbackAudio(seconds) {
   for (const cue of START_CLOCK_CUES) {
     if (cue > seconds) continue;
-    scheduleStartClockSound((seconds - cue) * 1000, cue >= 10 ? 'long' : 'short');
+    const delay = getStartClockCueDelay(cue);
+    if (delay === null || delay < -START_CLOCK_LATE_CUE_MS) continue;
+    scheduleStartClockSound(delay, getStartClockCueKind(cue));
   }
 
-  scheduleStartClockSound(seconds * 1000, 'go');
+  const goDelay = getStartClockCueDelay(0);
+  if (goDelay !== null && goDelay >= -START_CLOCK_LATE_CUE_MS) scheduleStartClockSound(goDelay, 'go');
+}
+
+function scheduleStartClockBufferedAudio(seconds) {
+  const ctx = ensureAudioContext();
+  if (!ctx || !startClockState || !startClockAudioBuffers) return false;
+
+  for (const cue of START_CLOCK_CUES) {
+    if (cue > seconds) continue;
+    const delay = getStartClockCueDelay(cue);
+    if (delay === null || delay < -START_CLOCK_LATE_CUE_MS) continue;
+    const source = ctx.createBufferSource();
+    source.buffer = startClockAudioBuffers[getStartClockCueKind(cue)];
+    source.connect(ctx.destination);
+    source.start(ctx.currentTime + Math.max(0.02, delay / 1000));
+    scheduledAudioNodes.push(source);
+    source.addEventListener('ended', () => {
+      scheduledAudioNodes = scheduledAudioNodes.filter(node => node !== source);
+    });
+  }
+
+  const goDelay = getStartClockCueDelay(0);
+  if (goDelay !== null && goDelay >= -START_CLOCK_LATE_CUE_MS) {
+    const source = ctx.createBufferSource();
+    source.buffer = startClockAudioBuffers.go;
+    source.connect(ctx.destination);
+    source.start(ctx.currentTime + Math.max(0.02, goDelay / 1000));
+    scheduledAudioNodes.push(source);
+    source.addEventListener('ended', () => {
+      scheduledAudioNodes = scheduledAudioNodes.filter(node => node !== source);
+    });
+  }
+
+  return true;
+}
+
+function scheduleStartClockAudio(seconds) {
+  clearScheduledAudio();
+  const scheduleId = audioScheduleId;
+  const ctx = ensureAudioContext();
+  if (!ctx) {
+    scheduleStartClockFallbackAudio(seconds);
+    return;
+  }
+
+  loadStartClockAudio()
+    .then(() => {
+      if (scheduleId !== audioScheduleId) return;
+      if (!scheduleStartClockBufferedAudio(seconds)) scheduleStartClockFallbackAudio(seconds);
+    })
+    .catch(() => {
+      if (scheduleId !== audioScheduleId) return;
+      scheduleStartClockFallbackAudio(seconds);
+    });
 }
 
 function setOverlayText(kicker, time, status = '', substatus = '') {
@@ -852,25 +1014,23 @@ function tickStartClock() {
 
   const remainingMs = startClockState.endAt - performance.now();
   if (remainingMs <= 0) {
-    setOverlayText('Start Clock', 'GO', 'Start', 'Close when done');
+    setOverlayText('Start Clock', 'GO', 'Start', '');
     startClockState = null;
     return;
   }
 
   const remaining = Math.ceil(remainingMs / 1000);
   const status = remaining <= 10 ? 'Ready' : 'Stand by';
-  const nextCue = START_CLOCK_CUES.find(cue => cue < remaining);
-  const substatus = nextCue ? 'Next beep at ' + nextCue + 's' : 'Next tone is Go';
   overlayTimeEl.textContent = String(remaining).padStart(2, '0');
   overlayStatusEl.textContent = status;
-  overlaySubstatusEl.textContent = substatus;
+  overlaySubstatusEl.textContent = '';
   startClockState.rafId = requestAnimationFrame(tickStartClock);
 }
 
 function startClock(seconds) {
   const now = performance.now();
   openOverlay('start');
-  setOverlayText('Start Clock', String(seconds).padStart(2, '0'), 'Stand by', 'Beeps at 60, 30, 20, 10, 5-1');
+  setOverlayText('Start Clock', String(seconds).padStart(2, '0'), 'Stand by', '');
   startClockState = {
     endAt: now + seconds * 1000,
     rafId: null
@@ -993,6 +1153,8 @@ try {
 pursuitTargetEl.addEventListener('input', () => {
   try { localStorage.setItem(PURSUIT_TARGET_STORAGE_KEY, pursuitTargetEl.value); } catch (e) {}
 });
+
+fetchStartClockAudioData().catch(() => {});
 
 const CHAINRING_MIN = 44;
 const CHAINRING_MAX = 70;
