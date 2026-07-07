@@ -220,6 +220,196 @@
     min-width: 0;
   }
 
+  .button-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .control-btn {
+    min-height: 36px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    background: #12141c;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+  }
+
+  .control-btn:hover,
+  .control-btn:focus {
+    border-color: #5b8def;
+    outline: none;
+  }
+
+  .control-btn:active {
+    background: #202431;
+  }
+
+  .control-btn.full-width {
+    width: 100%;
+  }
+
+  body.overlay-open {
+    overflow: hidden;
+  }
+
+  .fullscreen-mode {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: #030409;
+    color: #fff;
+    text-align: center;
+    touch-action: manipulation;
+    user-select: none;
+    transition: background-color 0.18s ease;
+  }
+
+  .fullscreen-mode[hidden] {
+    display: none;
+  }
+
+  .fullscreen-mode.flash-green {
+    background: #087a3c;
+  }
+
+  .fullscreen-mode.flash-red {
+    background: #a41f2b;
+  }
+
+  .fullscreen-close {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(18, 20, 28, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .overlay-content {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .pursuit-mode .overlay-content {
+    position: fixed;
+    left: max(18px, env(safe-area-inset-left));
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .overlay-kicker {
+    min-height: 1em;
+    margin-bottom: 10px;
+    color: #8d95a7;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .overlay-time {
+    font-size: 6rem;
+    font-weight: 800;
+    line-height: 0.95;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pursuit-mode .overlay-time {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 2.8rem;
+    line-height: 1;
+    text-align: left;
+  }
+
+  .overlay-status {
+    min-height: 1.4em;
+    margin-top: 14px;
+    color: #c4c9d6;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .overlay-substatus {
+    min-height: 1.2em;
+    margin-top: 4px;
+    color: #737b8e;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pursuit-mode .overlay-kicker,
+  .pursuit-mode .overlay-substatus {
+    display: none;
+  }
+
+  .pursuit-mode .overlay-status {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    margin-top: 0;
+    color: #fff;
+    font-size: 2.6rem;
+    line-height: 1;
+    letter-spacing: 0;
+    text-align: right;
+    text-transform: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fullscreen-mode.flash-green .overlay-kicker,
+  .fullscreen-mode.flash-green .overlay-status,
+  .fullscreen-mode.flash-green .overlay-substatus,
+  .fullscreen-mode.flash-red .overlay-kicker,
+  .fullscreen-mode.flash-red .overlay-status,
+  .fullscreen-mode.flash-red .overlay-substatus {
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  @media (max-width: 480px) {
+    .overlay-time {
+      font-size: 4.8rem;
+    }
+
+    .pursuit-mode .overlay-time {
+      font-size: 2.4rem;
+    }
+
+    .pursuit-mode .overlay-status {
+      font-size: 2.2rem;
+    }
+  }
+
   .icon-btn {
     flex-shrink: 0;
     width: 32px;
@@ -373,10 +563,40 @@
   </div>
 
   <div class="card">
+    <h2>Start Clock</h2>
+    <div class="button-row">
+      <button type="button" class="control-btn" data-start-seconds="60">60s</button>
+      <button type="button" class="control-btn" data-start-seconds="30">30s</button>
+      <button type="button" class="control-btn" data-start-seconds="10">10s</button>
+    </div>
+    <p class="hint">Beeps at 60, 30, 20, 10, 5-1, then Go.</p>
+  </div>
+
+  <div class="card">
+    <h2>Pursuit Splits</h2>
+    <div class="field">
+      <label for="pursuit-target">Lap Time (s)</label>
+      <input type="number" id="pursuit-target" placeholder="15.00" min="0" step="0.01">
+    </div>
+    <button type="button" id="pursuit-start-btn" class="control-btn full-width">Start</button>
+    <p class="hint">Tap each lap for green under target or red over target.</p>
+  </div>
+
+  <div class="card">
     <p class="disclaimer">Support this site:</p>
     <div class="bmc-wrapper">
       <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="jakev" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
     </div>
+  </div>
+</div>
+
+<div id="fullscreen-mode" class="fullscreen-mode" hidden>
+  <button type="button" id="fullscreen-close" class="fullscreen-close" aria-label="Close">&times;</button>
+  <div class="overlay-content">
+    <div id="overlay-kicker" class="overlay-kicker"></div>
+    <div id="overlay-time" class="overlay-time">00</div>
+    <div id="overlay-status" class="overlay-status"></div>
+    <div id="overlay-substatus" class="overlay-substatus"></div>
   </div>
 </div>
 
@@ -509,6 +729,270 @@ speedUnitEl.addEventListener('change', () => {
 });
 chainringEl.addEventListener('input', () => update('gearing'));
 cogEl.addEventListener('input', () => update('gearing'));
+
+const fullscreenEl = $('fullscreen-mode');
+const fullscreenCloseEl = $('fullscreen-close');
+const overlayKickerEl = $('overlay-kicker');
+const overlayTimeEl = $('overlay-time');
+const overlayStatusEl = $('overlay-status');
+const overlaySubstatusEl = $('overlay-substatus');
+const pursuitTargetEl = $('pursuit-target');
+const pursuitStartBtn = $('pursuit-start-btn');
+
+let activeMode = null;
+let scheduledAudioTimers = [];
+let activeAudioEls = [];
+let startClockState = null;
+let pursuitState = null;
+const START_CLOCK_CUES = [60, 30, 20, 10, 5, 4, 3, 2, 1];
+const PURSUIT_FLASH_MS = 3000;
+const START_CLOCK_AUDIO = {
+  long: new Audio('tissot_long_beep.mp3'),
+  short: new Audio('tissot_short_beep.mp3'),
+  go: new Audio('tissot_start_beep.mp3')
+};
+
+Object.values(START_CLOCK_AUDIO).forEach(audio => {
+  audio.preload = 'auto';
+  audio.load();
+});
+
+function clearScheduledAudio() {
+  for (const timer of scheduledAudioTimers) clearTimeout(timer);
+  scheduledAudioTimers = [];
+
+  for (const audio of activeAudioEls) {
+    audio.pause();
+    try { audio.currentTime = 0; } catch (e) {}
+  }
+  activeAudioEls = [];
+}
+
+function playStartClockSound(kind) {
+  const template = START_CLOCK_AUDIO[kind];
+  if (!template) return;
+
+  const audio = template.cloneNode(true);
+  activeAudioEls.push(audio);
+  audio.addEventListener('ended', () => {
+    activeAudioEls = activeAudioEls.filter(item => item !== audio);
+  }, { once: true });
+  audio.play().catch(() => {
+    activeAudioEls = activeAudioEls.filter(item => item !== audio);
+  });
+}
+
+function scheduleStartClockSound(delayMs, kind) {
+  if (delayMs <= 0) {
+    playStartClockSound(kind);
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    playStartClockSound(kind);
+    scheduledAudioTimers = scheduledAudioTimers.filter(item => item !== timer);
+  }, delayMs);
+  scheduledAudioTimers.push(timer);
+}
+
+function scheduleStartClockAudio(seconds) {
+  clearScheduledAudio();
+  for (const cue of START_CLOCK_CUES) {
+    if (cue > seconds) continue;
+    scheduleStartClockSound((seconds - cue) * 1000, cue >= 10 ? 'long' : 'short');
+  }
+
+  scheduleStartClockSound(seconds * 1000, 'go');
+}
+
+function setOverlayText(kicker, time, status = '', substatus = '') {
+  overlayKickerEl.textContent = kicker;
+  overlayTimeEl.textContent = time;
+  overlayStatusEl.textContent = status;
+  overlaySubstatusEl.textContent = substatus;
+}
+
+function clearStartClock() {
+  if (!startClockState) return;
+  if (startClockState.rafId) cancelAnimationFrame(startClockState.rafId);
+  startClockState = null;
+}
+
+function clearPursuit() {
+  if (!pursuitState) return;
+  if (pursuitState.rafId) cancelAnimationFrame(pursuitState.rafId);
+  if (pursuitState.flashTimer) clearTimeout(pursuitState.flashTimer);
+  pursuitState = null;
+}
+
+function openOverlay(mode) {
+  clearStartClock();
+  clearPursuit();
+  clearScheduledAudio();
+  activeMode = mode;
+  fullscreenEl.className = 'fullscreen-mode';
+  fullscreenEl.classList.add(mode + '-mode');
+  fullscreenEl.hidden = false;
+  document.body.classList.add('overlay-open');
+}
+
+function closeOverlay() {
+  clearStartClock();
+  clearPursuit();
+  clearScheduledAudio();
+  activeMode = null;
+  fullscreenEl.hidden = true;
+  fullscreenEl.className = 'fullscreen-mode';
+  document.body.classList.remove('overlay-open');
+  setOverlayText('', '00');
+}
+
+function tickStartClock() {
+  if (!startClockState) return;
+
+  const remainingMs = startClockState.endAt - performance.now();
+  if (remainingMs <= 0) {
+    setOverlayText('Start Clock', 'GO', 'Start', 'Close when done');
+    startClockState = null;
+    return;
+  }
+
+  const remaining = Math.ceil(remainingMs / 1000);
+  const status = remaining <= 10 ? 'Ready' : 'Stand by';
+  const nextCue = START_CLOCK_CUES.find(cue => cue < remaining);
+  const substatus = nextCue ? 'Next beep at ' + nextCue + 's' : 'Next tone is Go';
+  overlayTimeEl.textContent = String(remaining).padStart(2, '0');
+  overlayStatusEl.textContent = status;
+  overlaySubstatusEl.textContent = substatus;
+  startClockState.rafId = requestAnimationFrame(tickStartClock);
+}
+
+function startClock(seconds) {
+  const now = performance.now();
+  openOverlay('start');
+  setOverlayText('Start Clock', String(seconds).padStart(2, '0'), 'Stand by', 'Beeps at 60, 30, 20, 10, 5-1');
+  startClockState = {
+    endAt: now + seconds * 1000,
+    rafId: null
+  };
+  scheduleStartClockAudio(seconds);
+  tickStartClock();
+}
+
+function formatSignedSeconds(seconds) {
+  const sign = seconds >= 0 ? '+' : '-';
+  return sign + Math.abs(seconds).toFixed(2);
+}
+
+function tickPursuit() {
+  if (!pursuitState) return;
+  const elapsed = (performance.now() - pursuitState.lastSplitAt) / 1000;
+  overlayTimeEl.textContent = elapsed.toFixed(2);
+  pursuitState.rafId = requestAnimationFrame(tickPursuit);
+}
+
+function setPursuitReadyText() {
+  if (!pursuitState) return;
+  overlayKickerEl.textContent = '';
+  overlayStatusEl.textContent = pursuitState.lastDeltaText || '';
+  overlaySubstatusEl.textContent = '';
+}
+
+function flashPursuitResult(isUnder, split, delta) {
+  const deltaText = formatSignedSeconds(delta);
+  pursuitState.lastDeltaText = deltaText;
+  fullscreenEl.classList.remove('flash-green', 'flash-red');
+  fullscreenEl.classList.add(isUnder ? 'flash-green' : 'flash-red');
+  overlayStatusEl.textContent = deltaText;
+  overlaySubstatusEl.textContent = '';
+
+  if (pursuitState.flashTimer) clearTimeout(pursuitState.flashTimer);
+  pursuitState.flashTimer = setTimeout(() => {
+    fullscreenEl.classList.remove('flash-green', 'flash-red');
+    if (pursuitState) setPursuitReadyText();
+  }, PURSUIT_FLASH_MS);
+}
+
+function recordPursuitSplit(tapTime = performance.now()) {
+  if (!pursuitState) return;
+  const split = (tapTime - pursuitState.lastSplitAt) / 1000;
+  const delta = split - pursuitState.target;
+  const isUnder = delta <= 0;
+  flashPursuitResult(isUnder, split, delta);
+  pursuitState.lastSplitAt = tapTime;
+  pursuitState.lap += 1;
+}
+
+function startPursuit() {
+  const target = parseFloat(pursuitTargetEl.value);
+  if (!target || target <= 0) {
+    const originalText = pursuitStartBtn.textContent;
+    pursuitTargetEl.focus();
+    pursuitStartBtn.textContent = 'Enter lap time';
+    setTimeout(() => { pursuitStartBtn.textContent = originalText; }, 1200);
+    return;
+  }
+
+  const now = performance.now();
+  openOverlay('pursuit');
+  pursuitState = {
+    target,
+    lastSplitAt: now,
+    lap: 1,
+    lastDeltaText: '',
+    rafId: null,
+    flashTimer: null
+  };
+  setOverlayText('', '0.00', '', '');
+  tickPursuit();
+}
+
+document.querySelectorAll('[data-start-seconds]').forEach(button => {
+  button.addEventListener('click', () => {
+    startClock(parseInt(button.dataset.startSeconds, 10));
+  });
+});
+
+pursuitStartBtn.addEventListener('click', startPursuit);
+
+fullscreenEl.addEventListener('pointerdown', event => {
+  if (activeMode !== 'pursuit') return;
+  if (event.target === fullscreenCloseEl) return;
+  event.preventDefault();
+  recordPursuitSplit(performance.now());
+});
+
+fullscreenCloseEl.addEventListener('pointerdown', event => {
+  event.stopPropagation();
+});
+
+fullscreenCloseEl.addEventListener('click', event => {
+  event.stopPropagation();
+  closeOverlay();
+});
+
+document.addEventListener('keydown', event => {
+  if (!activeMode) return;
+  if (event.key === 'Escape') {
+    closeOverlay();
+    return;
+  }
+  if (activeMode === 'pursuit' && (event.key === ' ' || event.key === 'Enter')) {
+    event.preventDefault();
+    recordPursuitSplit();
+  }
+});
+
+const PURSUIT_TARGET_STORAGE_KEY = 'trackcalc.pursuitTarget';
+
+try {
+  const savedPursuitTarget = localStorage.getItem(PURSUIT_TARGET_STORAGE_KEY);
+  if (savedPursuitTarget) pursuitTargetEl.value = savedPursuitTarget;
+} catch (e) {}
+
+pursuitTargetEl.addEventListener('input', () => {
+  try { localStorage.setItem(PURSUIT_TARGET_STORAGE_KEY, pursuitTargetEl.value); } catch (e) {}
+});
 
 const CHAINRING_MIN = 44;
 const CHAINRING_MAX = 70;
